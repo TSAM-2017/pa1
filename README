@@ -1,0 +1,27 @@
+# TFTP server
+
+A simple tftp server written in C
+
+feature list:
+
+ * Downloads from server
+ * Upload requests are ignored
+ * Support simultaneous requests (using threading)
+ * otherwise fully compatible with [RFC 1350](https://www.ietf.org/rfc/rfc1350.txt)
+
+how to build:
+run `make` within the `src/` directory
+
+how to start server:
+
+```
+$ ./tftp <port> <directory>
+```
+all other signatures will cause errors
+
+### Code structure:
+
+The main logic of the program can be found in `tftpd.c` but extra files are also included
+
+ * `types_and_constants.h` is to keep const values and typedefs that are used throughout the project
+ * `file_util.c` contains utility functions for easyer file opening, closing and reading (with added safety checks)
