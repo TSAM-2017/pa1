@@ -67,13 +67,58 @@ int get_filename(char* buffer, char* packet){
  * @param blocknr sequential number of the packet (note: must be unique as per protocol per transmission)
  * @param data    data packed in 8-bit bytes with a max of BLOCK_SIZE bytes
  */
-int make_data_packet(char* buffer, short blocknr, char* data, int size){
+int make_data_packet(unsigned char* buffer, short blocknr, char* data, int size){
 	memset(buffer, 0, PACKET_SIZE+1);
-	short code = (short)DATA;
-	buffer[1] = htons(code);
-	buffer[3] = htons(blocknr);
-	strncpy(&buffer[4], data, size);
+	sprintf((char*)buffer, "%c%c%c%c", 0x00, 0x03, 0x00, blocknr);
+	memcpy((char*)buffer +4, data, size);
 	return 0;
+}
+
+/**
+ * send file to client
+ * @param file   pointer to file that is to be sent
+ * @param mode   read mode for the file
+ * @param client [description]
+ */
+void send_file(FILE* file, tftp_mode mode, struct sockaddr_in client, int sockfd){
+	int ACKs = 0; // num acked data packets
+	int count = 0; // num packets sent
+	char filebuffer[BLOCK_SIZE];
+	char recbuffer[PACKET_SIZE];
+	socklen_t rec_size;
+	memset(filebuffer, '\0', sizeof(filebuffer));
+	memset(recbuffer, '\0', sizeof(recbuffer));
+	while (1) {
+		// get current block
+		count++;
+		int size = read_block_from_file(file, count, filebuffer);
+
+		// create packet
+		unsigned char packetbuffer[PACKET_SIZE];
+		make_data_packet(packetbuffer, count, filebuffer, size);
+		int packetLen = size+4;
+
+		// attempt to send
+		if(sendto(sockfd, packetbuffer, packetLen, 0, (struct sockaddr *) &client, sizeof(client)) != packetLen){
+			fprintf(stderr, "failed to send packet\n");
+		}
+
+		// recieve respone
+		memset(recbuffer, '\0', sizeof(recbuffer));
+		recvfrom(sockfd, recbuffer, PACKET_SIZE, 0, (struct sockaddr *) &client, &rec_size);
+		if (recbuffer[1] == 4) {
+			/* ack */
+			fprintf(stdout, "packet number %d acked\n", count);
+			ACKs++;
+		}
+
+		// check if sending has finished
+		if (size != BLOCK_SIZE) {
+			// last message is either short or zero length so break when that happens
+			fprintf(stdout, "last packet sent\n");
+			break;
+		}
+	}
 }
 
 int main(int argc, char** argv){
@@ -116,6 +161,7 @@ int main(int argc, char** argv){
 
         message[n] = '\0';
 
+		// get file path
 		char file_name[100];
 		memset(file_name, '\0', sizeof(file_name));
 		get_filename(file_name, message);
@@ -126,19 +172,12 @@ int main(int argc, char** argv){
 
 		FILE* file = open_file(full_path);
 		if(!file){
+
 			fprintf(stderr, "unable to open file\n");
 			exit(-1);
 		}
-		tftp_mode current_mode = get_mode(message);
-		char msg[512];
-		int i = 1;
-		int j;
-		while((j = read_block_from_file(file, i, msg)) > 511){
-			i++;
-		}
-		close_file(file);
 
-        // sendto(sockfd, message, (size_t) n, 0,
-        //         (struct sockaddr *) &client, len);
+		send_file(file, get_mode(message), client, sockfd);
+		close_file(file);
     }
 }
