@@ -16,6 +16,13 @@
 #include "types_and_constants.h"
 #include "file_util.c"
 
+// Constants for TFTP Packets
+const unsigned short RRQ = 1;
+const unsigned short WRQ = 2;
+const unsigned short DATA = 3;
+const unsigned short ACK = 4;
+const unsigned short ERROR = 5;
+
 /**
  * find tftp packet op code
  * @param  packet [description]
@@ -123,20 +130,24 @@ void send_file(FILE* file, tftp_mode mode, struct sockaddr_in client, int sockfd
 
 int main(int argc, char** argv){
 	// validate arguments
+	// mandatory to have 3: name of program, the port and directory
 	if(argc != 3){
 		fprintf(stderr, "expected usage: %s <port> <dir>\n", argv[0] );
-		return -1;
+		exit(0);
 	}
+	// The arguments
 	int port_number = atoi(argv[1]);
 	char* dir_name = argv[2];
 	if(dir_name[strlen(dir_name)-1] == '/'){ dir_name[strlen(dir_name)-1] = '\0';}
 
-    int sockfd;
+	// Socket file descriptor
+	int sockfd;
     struct sockaddr_in server, client;
     char message[512];
 
-    /* Create and bind a UDP socket */
+    // Create and bind a UDP socket
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	// Initialize the server
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
 
@@ -146,16 +157,17 @@ int main(int argc, char** argv){
      */
     server.sin_addr.s_addr = htonl(INADDR_ANY);
     server.sin_port = htons(port_number);
-    bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server));
+    bind(sockfd, (struct sockaddr *) &server, (socklen_t), sizeof(server));
 
 	printf("dir name %s\n", dir_name);
 	printf("starting on port: %d\n", port_number);
+	exit(0);
 
     for (;;) {
         /* Receive up to one byte less than declared, because it will
          * be NUL-terminated later.
          */
-        socklen_t len = (socklen_t) sizeof(client);
+		socklen_t len = (socklen_t)sizeof(client);
         ssize_t n = recvfrom(sockfd, message, sizeof(message) - 1,
                              0, (struct sockaddr *) &client, &len);
 
