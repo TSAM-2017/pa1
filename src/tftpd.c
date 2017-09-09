@@ -16,7 +16,7 @@
 #include "types_and_constants.h"
 #include "file_util.c"
 
-// Constants for TFTP Packets
+// Constants for TFTP messages
 const unsigned short RRQ = 1;
 const unsigned short WRQ = 2;
 const unsigned short DATA = 3;
@@ -125,6 +125,23 @@ void send_file(FILE* file, tftp_mode mode, struct sockaddr_in client, int sockfd
 			fprintf(stdout, "last packet sent\n");
 			break;
 		}
+	}
+}
+
+/**
+ * Point 8 from the project description
+ * RRQ & WRQ are used by the client to request the server to start reading
+ * or writing a file. Both (RRQ & WRQ) send the file name and transfer mode
+ * (ascii or binary) as additional parameters.
+ */
+void validate_message(short request){
+	unsigned int transfer = 0;
+	if (request == RRQ){
+		// TODO: implement send request from the client side
+		// TODO: validate filename and packet size
+		// TODO: Open file if valid
+		// TODO: Send first block and data
+		// TODO: Send write request from the client side
 	}
 }
 
