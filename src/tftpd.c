@@ -17,11 +17,11 @@
 #include "file_util.c"
 
 // Constants for TFTP messages
-const unsigned short RRQ = 1;
+/*const unsigned short RRQ = 1;
 const unsigned short WRQ = 2;
 const unsigned short DATA = 3;
 const unsigned short ACK = 4;
-const unsigned short ERROR = 5;
+const unsigned short ERROR = 5;*/ // er til enum
 
 /**
  * find tftp packet op code
@@ -134,7 +134,7 @@ void send_file(FILE* file, tftp_mode mode, struct sockaddr_in client, int sockfd
  * or writing a file. Both (RRQ & WRQ) send the file name and transfer mode
  * (ascii or binary) as additional parameters.
  */
-void validate_message(short request){
+void validate_message(opcode_t request){
 	unsigned int transfer = 0;
 	if (request == RRQ){
 		// TODO: implement send request from the client side
@@ -155,10 +155,11 @@ int main(int argc, char** argv){
 	// The arguments
 	int port_number = atoi(argv[1]);
 	char* dir_name = argv[2];
-	if(dir_name[strlen(dir_name)-1] == '/'){ dir_name[strlen(dir_name)-1] = '\0';}
+	if(dir_name[strlen(dir_name)-1] == '/')
+	    dir_name[strlen(dir_name)-1] = '\0';
 
-	// Socket file descriptor
-	int sockfd;
+    // Socket file descriptor
+    int sockfd;
     struct sockaddr_in server, client;
     char message[512];
 
@@ -174,22 +175,63 @@ int main(int argc, char** argv){
      */
     server.sin_addr.s_addr = htonl(INADDR_ANY);
     server.sin_port = htons(port_number);
-    bind(sockfd, (struct sockaddr *) &server, (socklen_t), sizeof(server));
+    if (bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server)) < 0) {
+        printf("ERROR on binding\n");
+        return -1;
+    }
 
-	printf("dir name %s\n", dir_name);
-	printf("starting on port: %d\n", port_number);
-	exit(0);
+    printf("dir name %s\n", dir_name);
+    printf("starting on port: %d\n", port_number);
+    //exit(0);
 
     for (;;) {
         /* Receive up to one byte less than declared, because it will
          * be NUL-terminated later.
          */
-		socklen_t len = (socklen_t)sizeof(client);
+	socklen_t len = (socklen_t)sizeof(client);
         ssize_t n = recvfrom(sockfd, message, sizeof(message) - 1,
                              0, (struct sockaddr *) &client, &len);
 
         message[n] = '\0';
+	int op_code = message[1]; // get opcode
 
+        if (op_code == RRQ) {
+            // Read request
+            printf("RRQ\n");
+            char *filename, *rrq_mode;
+
+	    filename = (char*)&message[2];
+            printf("filename: ");
+            for (int i = 0; i < strlen(filename); i++)
+                printf("%c", filename[i]);
+	    printf("\n");
+            rrq_mode = (char*)&message[2+strlen(filename)+1];
+            printf("rrq_mode: ");
+            for (int i = 0; i < strlen(rrq_mode); i++)
+                printf("%c", rrq_mode[i]);
+            printf("\n");
+
+            exit(-1); // taka
+        }
+	else if (op_code == WRQ) {
+            // Write request, not implemented
+            printf("WRQ\n");
+            printf("ERROR: Uploading not allowed.\n");
+        }
+	else if (op_code == DATA) {
+            // 
+            printf("DATA\n");
+        }
+	else if (op_code == ACK) {
+            // 
+            printf("ACK\n");
+        }
+	else if (op_code == ERROR) {
+            // 
+            printf("ERROR\n");
+        }
+	exit(0); //
+    }
 		// get file path
 		char file_name[100];
 		memset(file_name, '\0', sizeof(file_name));
@@ -208,5 +250,5 @@ int main(int argc, char** argv){
 
 		send_file(file, get_mode(message), client, sockfd);
 		close_file(file);
-    }
+    //}
 }
