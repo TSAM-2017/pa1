@@ -172,7 +172,6 @@ tftp_mode get_mode(char* packet){
 
 
 
-
 // globals
 struct sockaddr_in server, client;
 unsigned int block_number, ack_block_number;
@@ -208,19 +207,21 @@ void begin_send_file(char *path_name, int sockfd) {
 }
 
 /*
-*	closes file
+*	Closes file if it's open
 */
 void end_send_file() {
-    fclose(file);
-    file = NULL;
+    if (file != -1){
+		fclose(file);
+		file = -1;
+	}
 }
 
 /*
-*	builds a data packet, reads into the data field from file upto a max BLOCK_SIZE bytes
+*	builds a data packet, reads into the data field from file up to a max BLOCK_SIZE bytes
 *	sends the packet and closes the file if last byte of file was read
 *	@param sockfd	socket descriptor
 *	DATA packet:
-*	           2 bytes     2 bytes      n bytes
+*	               2 bytes     2 bytes     n bytes
 *                  ----------------------------------
 *                 | Opcode |   Block #  |   Data     |
 *                  ----------------------------------
@@ -246,7 +247,6 @@ void send_data_packet(int sockfd) {
     }
     data_bytes -= 4;
     printf("packet size: %d, data field size: %d\n", data_bytes+4, data_bytes);
-
     // send data packet
     sendto(sockfd, send_packet, data_bytes+4, 0, (struct sockaddr *) &client, (socklen_t) sizeof(client));
 }
@@ -402,48 +402,48 @@ int main(int argc, char** argv) {
         printf("received packet: %zu bytes\n", n);
 
         rec_packet[n] = '\0';
-	int op_code = rec_packet[1]; // get opcode
-	printf("opcode: %d\n", op_code);
+		int op_code = rec_packet[1]; // get opcode
+		printf("opcode: %d\n", op_code);
 
         if (op_code == RRQ) {
-            // Read request
-            printf("RRQ\n");
-	    handle_rrq(sockfd, dir_name);
+			// Rear request
+			printf("RRQ\n");
+	    	handle_rrq(sockfd, dir_name);
         }
         else if (op_code == WRQ) {
             // Write request, not implemented
             printf("WRQ\n");
             printf("ERROR: Uploading not allowed. ACCESS VIOLATION. \n");
-	    send_error_packet(sockfd, ACCESS, "Access violation. Write requests not allowed.\0");
+	    	send_error_packet(sockfd, ACCESS, "Access violation. Write requests not allowed.\0");
         }
         else if (op_code == DATA) {
             // Data packet, illegal operation
             printf("DATA\n");
-	    printf("ERROR: May not receive data. ILLEGAL OPERATION.\n");
+	    	printf("ERROR: May not receive data. ILLEGAL OPERATION.\n");
             send_error_packet(sockfd, ILLEGAL, "Illegal TFTP operation.\0");
-	}
-	else if (op_code == ACK) {
+		}
+		else if (op_code == ACK) {
             // Acknowledgement
             printf("ACK\n");
-	    // get block number from the ack packet
-	    ack_block_number = (((unsigned char*)rec_packet)[2] << 8) + ((unsigned char*)rec_packet)[3];
-            if (ack_block_number == block_number) {
-	   	// then data packet was delivered and next packet can be sent
-		ack_packet_true(sockfd);
-             }
-	    else {
-	        // then data packet was not delivered and it must be resent
-		printf("ACK_BLOCK_NUMBER: %d\n", ack_block_number);
+	    	// get block number from the ack packet
+	    	ack_block_number = (((unsigned char*)rec_packet)[2] << 8) + ((unsigned char*)rec_packet)[3];
+            if (htons(ack_block_number) == block_number) {
+	   			// then data packet was delivered and next packet can be sent
+				ack_packet_true(sockfd);
+			}
+	    	else {
+	        	// then data packet was not delivered and it must be resent
+				printf("ACK_BLOCK_NUMBER: %d\n", ack_block_number);
                 printf("resend last packet with blocknumber: %d\n", block_number);
                 sendto(sockfd, send_packet, data_bytes+4, 0, (struct sockaddr *) &client, (socklen_t) sizeof(client));
-	    }
+	    	}
         }
-	else if (op_code == ERROR) {
+		else if (op_code == ERROR) {
             // Error packet
             printf("ERROR\n");
-	    if (file) {
-		end_send_file();
-	    }
+	    	if (file) {
+				end_send_file();
+	    	}
 	    exit(0);
         }
     }
