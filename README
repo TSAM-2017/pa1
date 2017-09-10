@@ -10,7 +10,8 @@ feature list:
  * otherwise fully compatible with [RFC 1350](https://www.ietf.org/rfc/rfc1350.txt)
 
 how to build:
-run `make` within the `src/` directory
+run 'make' within the 'src/' directory
+or run 'make -C ./src' within the pa1/ directory
 
 how to start server:
 
@@ -21,7 +22,25 @@ all other signatures will cause errors
 
 ### Code structure:
 
-The main logic of the program can be found in `tftpd.c` but extra files are also included
+The main logic of the program can be found in 'tftpd.c' but extra files are also included
 
- * `types_and_constants.h` is to keep const values and typedefs that are used throughout the project
- * `file_util.c` contains utility functions for easier file opening, closing and reading (with added safety checks)
+ * 'types_and_constants.' is to keep const values and typedefs that are used throughout the project
+ * 'file_util.c' contains utility functions for easier file opening, closing and reading (with added safety checks)
+
+Packets are implemented as char of size PACKET_SIZE = 516
+
+If filename contains a path, only the first directory is used
+
+-Mode strings can be "mail", "octet" and "netascii".
+
+"mail" mode means that netascii characters are sent to user rather than a file, 
+but this mode is obsolete and was not implemented
+
+"octet" mode means that data is transferred and stored exactly as is,
+this was therefore not implemented
+
+"netascii" mode means that it is assumed that a text file is being sent,
+a host which receives netascii mode data must translate the data to its own format.
+
+-Server does not accept WRQ packets, that is, attempts of uploading files are handled
+by sending an error packet
