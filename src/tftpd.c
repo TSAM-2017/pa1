@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -173,13 +174,13 @@ tftp_mode get_mode(char* packet){
 
 
 
-// globals
-struct sockaddr_in server, client;
-unsigned int block_number, ack_block_number;
+// global variables
+struct sockaddr_in server, client; // structures for handling internet addresses
+unsigned int block_number, ack_block_number; // block numbers of send_packet and rec_packet
 char send_packet[PACKET_SIZE]; // package to send (sendto)
 char rec_packet[PACKET_SIZE]; // received packet (recvfrom)
-int data_bytes;
-FILE *file;
+int data_bytes; // number of bytes in data field of send_packet
+FILE *file; // requested file
 
 // function declarations
 void begin_send_file(char *path_name, int sockfd);
@@ -196,8 +197,8 @@ void mode_netascii(char *path);
 *	@param sockfd		socket desciptor
 */
 void begin_send_file(char *path_name, int sockfd) {
-    // open file stream
     if (!file) {
+	// open file stream if not already open
         file = fopen(path_name, "r"); // "r" for read only
     }
     if(!file) {
@@ -214,7 +215,10 @@ void begin_send_file(char *path_name, int sockfd) {
 *	closes file
 */
 void end_send_file() {
-    fclose(file);
+    if (file) {
+	// closes file if open
+	fclose(file);
+    }
     file = NULL;
 }
 
@@ -241,14 +245,14 @@ void send_data_packet(int sockfd) {
 	   // +4 because of opcode and blocknumber
 	   byte = fgetc(file);
 	   if (byte == EOF) {
-	       printf("--- END OF FILE ---\n");
+	       //printf("--- END OF FILE ---\n");
 	       end_send_file();
 	       break;
 	   }
 	   send_packet[data_bytes] = (char)byte;
     }
     data_bytes -= 4;
-    printf("packet size: %d, data field size: %d\n", data_bytes+4, data_bytes);
+    //printf("packet size: %d, data field size: %d\n", data_bytes+4, data_bytes);
 
     // send data packet
     sendto(sockfd, send_packet, data_bytes+4, 0, (struct sockaddr *) &client, (socklen_t) sizeof(client));
@@ -276,7 +280,7 @@ void send_error_packet(int sockfd, error_codes_t error_code, char *error_message
     if (file) {
 	// there was an error, file will not be used anymore
 	end_send_file();
-	printf("Error packet sent. Closing file.\n");
+	//printf("Error packet sent. Closing file.\n");
     }
 }
 
@@ -293,12 +297,12 @@ void ack_packet_true(int sockfd) {
     if (file) {
 	// then file is open and next packet can be sent
         block_number++; // inc blocknumber for next packet
-	printf("---current blocknumber: %d\n", block_number);
+	//printf("---current blocknumber: %d\n", block_number);
 	send_data_packet(sockfd);
      }
      else {
 	// then file is closed because the last packet has been delivered
-	printf("file delivered\n -end-\n");
+	//printf("file delivered\n -end-\n");
 	exit(0);
     }
 }
@@ -326,21 +330,20 @@ void handle_rrq(int sockfd, char* dir_name) {
 	// mode string could be a mix of upper and lower case chars
 	rrq_mode[i] = tolower(rrq_mode[i]);
     }
-    printf("file_name: %s\n", file_name);
-    printf("rrq_mode: %s\n", rrq_mode);
+    //printf("file_name: %s\n", file_name);
+    //printf("rrq_mode: %s\n", rrq_mode);
 
     // have dir_name and file_name, get full path
     char full_path[256];
     memset(full_path, 0, sizeof(full_path));
     join_path(full_path, 256, dir_name, file_name);
-    printf("full_path: %s\n", full_path);
+    //printf("full_path: %s\n", full_path);
 
     // check mode
     if (!strcmp(rrq_mode, MODE_NET)) {
         // then the mode is netascii (so it is assumed that a text file is being sent)
         // A host which receives netascii mode data must translate the data to its own format
-        // CONVERT
-	mode_netascii(full_path);
+	mode_netascii(full_path); // convert file
     }
     else if (!strcmp(rrq_mode, MODE_OCTET)) {
 	// then mode is octet (data is transferred and stored exactly as it is)
@@ -349,6 +352,10 @@ void handle_rrq(int sockfd, char* dir_name) {
         // then mode is mail
         // mail mode is obsolete and should not be implemented or used
     }
+
+    // list which file is requested form which IP and port
+    printf("file \"%s\" requested from %s:%d\n", file_name, inet_ntoa(client.sin_addr),
+						(int) ntohs(client.sin_port));
 
     // begin sending file
     begin_send_file(full_path, sockfd);
@@ -385,7 +392,7 @@ void mode_netascii(char *path) {
     fclose(file); // close data file
     file = fp; // point to temp file
     if (file) {
-	printf("temp file OPEN\n");
+	//printf("temp file OPEN\n");
     }
     fseek(file, 0, SEEK_SET); // point to beginning of file
 }
@@ -423,47 +430,47 @@ int main(int argc, char** argv) {
     server.sin_addr.s_addr = htonl(INADDR_ANY);
     server.sin_port = htons(port_number);
     if (bind(sockfd, (struct sockaddr *) &server, (socklen_t) sizeof(server)) < 0) {
-        printf("ERROR on binding. Exit.\n");
+        //printf("ERROR on binding. Exit.\n");
         exit(-1);
     }
 
-    printf("dir name: %s\n", dir_name);
-    printf("starting on port: %d\n", port_number);
+    //printf("dir name: %s\n", dir_name);
+    //printf("starting on port: %d\n", port_number);
 
     for (;;) {
-        printf("enter loop\n");
+        //printf("enter loop\n");
         /* Receive up to one byte less than declared, because it will
          * be NUL-terminated later.
          */
         socklen_t len = (socklen_t)sizeof(client);
         ssize_t n = recvfrom(sockfd, rec_packet, sizeof(rec_packet) - 1,
                              0, (struct sockaddr *) &client, &len);
-        printf("received packet: %zu bytes\n", n);
+        //printf("received packet: %zu bytes\n", n);
 
         rec_packet[n] = '\0';
 	int op_code = rec_packet[1]; // get opcode
-	printf("opcode: %d\n", op_code);
+	//printf("opcode: %d\n", op_code);
 
         if (op_code == RRQ) {
             // Read request
-            printf("RRQ\n");
+            //printf("RRQ\n");
 	    handle_rrq(sockfd, dir_name);
         }
         else if (op_code == WRQ) {
             // Write request, not implemented
-            printf("WRQ\n");
+            //printf("WRQ\n");
             printf("ERROR: Uploading not allowed. ACCESS VIOLATION. \n");
 	    send_error_packet(sockfd, ACCESS, "Access violation. Write requests not allowed.\0");
         }
         else if (op_code == DATA) {
             // Data packet, illegal operation
-            printf("DATA\n");
+            //printf("DATA\n");
 	    printf("ERROR: May not receive data. ILLEGAL OPERATION.\n");
             send_error_packet(sockfd, ILLEGAL, "Illegal TFTP operation.\0");
 	}
 	else if (op_code == ACK) {
             // Acknowledgement
-            printf("ACK\n");
+            //printf("ACK\n");
 	    // get block number from the ack packet
 	    ack_block_number = (((unsigned char*)rec_packet)[2] << 8) + ((unsigned char*)rec_packet)[3];
             if (ack_block_number == block_number) {
@@ -472,21 +479,21 @@ int main(int argc, char** argv) {
              }
 	    else {
 	        // then data packet was not delivered and it must be resent
-		printf("ACK_BLOCK_NUMBER: %d\n", ack_block_number);
-                printf("resend last packet with blocknumber: %d\n", block_number);
+		//printf("ACK_BLOCK_NUMBER: %d\n", ack_block_number);
+                //printf("resend last packet with blocknumber: %d\n", block_number);
                 sendto(sockfd, send_packet, data_bytes+4, 0, (struct sockaddr *) &client, (socklen_t) sizeof(client));
 	    }
         }
 	else if (op_code == ERROR) {
             // Error packet
-            printf("ERROR\n");
+            //printf("ERROR\n");
 	    if (file) {
 		end_send_file();
 	    }
 	    exit(0);
         }
     }
-    printf("out of loop\n");
+    //printf("out of loop\n");
     exit(0);
 }
 
