@@ -187,6 +187,7 @@ void send_data_packet(int sockfd);
 void send_error_packet(int sockfd, error_codes_t error_code, char *error_message);
 void ack_packet_true(int sockfd);
 void handle_rrq(int sockfd, char* dir_name);
+void mode_netascii(char *path);
 
 /*
 *	open file and send first data packet
@@ -195,10 +196,12 @@ void handle_rrq(int sockfd, char* dir_name);
 */
 void begin_send_file(char *path_name, int sockfd) {
     // open file stream
-    file = fopen(path_name, "r"); // "r" for read only
+    if (!file) {
+        file = fopen(path_name, "r"); // "r" for read only
+    }
     if(!file) {
-	   fprintf(stderr, "unable to open file\n");
-	   exit(-1);
+	send_error_packet(sockfd, 1, "File was opened");
+	exit(-1);
     }
 
     // set block number to 1, for the first packet
@@ -337,7 +340,7 @@ void handle_rrq(int sockfd, char* dir_name) {
         // then the mode is netascii (so it is assumed that a text file is being sent)
         // A host which receives netascii mode data must translate the data to its own format
         // CONVERT
-
+	mode_netascii(full_path);
     }
     else if (!strcmp(rrq_mode, MODE_OCTET)) {
 	// then mode is octet (data is transferred and stored exactly as it is)
@@ -349,6 +352,42 @@ void handle_rrq(int sockfd, char* dir_name) {
 
     // begin sending file
     begin_send_file(full_path, sockfd);
+}
+
+/*
+*	converts the file to netascii mode by making a temporary file that
+*	has all \n replaced with \r\n and all \r replaced with \r\0
+*	then having the data file pointer point to that temp file
+*	(temp file is deleted when program terminates)
+*	@param path	the path to the data file
+*/
+void mode_netascii(char *path) {
+    // \r carriage return(CR), \n line feed (LF)
+
+    // in RFC 764
+    // change all \n to \r\n
+    // change all \r to \r\0
+
+    FILE *fp = tmpfile(); // create a temporary file
+    file = fopen(path, "r"); // open data file in read only
+    // copy everything from file to fp
+    int c = fgetc(file);
+    while(c != EOF) {
+	if (c == '\n') {
+	    fputc('\r', fp);
+	}
+	fputc(c, fp);
+	if (c == '\r') {
+            fputc('\0', fp);
+        }
+	c = fgetc(file);
+    }
+    fclose(file); // close data file
+    file = fp; // point to temp file
+    if (file) {
+	printf("temp file OPEN\n");
+    }
+    fseek(file, 0, SEEK_SET); // point to beginning of file
 }
 
 /*

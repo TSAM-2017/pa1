@@ -41,6 +41,16 @@ this was therefore not implemented
 
 "netascii" mode means that it is assumed that a text file is being sent,
 a host which receives netascii mode data must translate the data to its own format.
+In RFC 764 it says:
+	the sequence "CR LF" must be treated as a single "new line" character 
+		and used whenever their combined action is intended; 
+	the sequence "CR NUL" must be used where a carriage return alone is
+		 actually desired; 
+	and the CR character must be avoided in other contexts.
+the function mode_netascii therefore replaces all LF(\n) with CR LF (\r\n) and 
+all CR (\r) with CR NUL (\r\0)
 
 -Server does not accept WRQ packets, that is, attempts of uploading files are handled
 by sending an error packet
+
+
