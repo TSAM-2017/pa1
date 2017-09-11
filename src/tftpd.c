@@ -18,16 +18,7 @@
 #include "types_and_constants.h"
 #include "file_util.c"
 
-/**
- * find tftp packet op code
- * @param  packet [description]
- * @return
- */
 /*
-int get_op_code(char* packet){
-	return (int)packet[1];
-}
-
 tftp_mode get_mode(char* packet){
 	char mode[512];
 	memset(mode, '\0', sizeof(mode));
@@ -124,42 +115,6 @@ tftp_mode get_mode(char* packet){
 	}
 }*/
 
-/**
- * Point 8 from the project description
- * RRQ & WRQ are used by the client to request the server to start reading
- * or writing a file. Both (RRQ & WRQ) send the file name and transfer mode
- * (ascii or binary) as additional parameters.
- */
-/*void validate_message(opcode_t request){
-	unsigned int transfer = 0;
-	if (request == RRQ){
-		// TODO: implement send request from the client side
-		// TODO: validate filename and packet size
-		// TODO: Open file if valid
-		// TODO: Send first block and data
-		// TODO: Send write request from the client side
-	}
-}*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // global variables
 struct sockaddr_in server, client; // structures for handling internet addresses
 unsigned int block_number, ack_block_number; // block numbers of send_packet and rec_packet
@@ -186,7 +141,7 @@ void begin_send_file(char *path_name, int sockfd) {
     if (!file) {
 	// open file stream if not already open
         file = fopen(path_name, "r"); // "r" for read only
-	printf("file was opened\n");
+	//printf("file was opened\n");
     }
     if(!file) {
 	send_error_packet(sockfd, 1, "File was not opened");
@@ -468,7 +423,7 @@ int main(int argc, char** argv) {
 		//printf("ACK_BLOCK_NUMBER: %d\n", ack_block_number);
                 //printf("resend last packet with blocknumber: %d\n", block_number);
                 sendto(sockfd, send_packet, data_bytes+4, 0, (struct sockaddr *) &client, (socklen_t) sizeof(client));
-	    	}
+	    }
         }
 	else if (op_code == ERROR) {
             // Error packet
