@@ -1,6 +1,6 @@
 # TFTP server
 
-A simple tftp server written in C
+A simple tftp server written in C that will only handle one client at a time
 
 feature list:
 
