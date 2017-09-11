@@ -18,20 +18,6 @@
 #include "types_and_constants.h"
 #include "file_util.c"
 
-// Constants for TFTP messages
-/*const unsigned short RRQ = 1;
-const unsigned short WRQ = 2;
-const unsigned short DATA = 3;
-const unsigned short ACK = 4;
-const unsigned short ERROR = 5;*/ // er til enum
-
-// globals
-/*struct sockaddr_in server, client;
-long block_number;
-char send_packet[PACKET_SIZE];
-int sockfd;
-FILE *file;*/
-
 /**
  * find tftp packet op code
  * @param  packet [description]
@@ -200,9 +186,10 @@ void begin_send_file(char *path_name, int sockfd) {
     if (!file) {
 	// open file stream if not already open
         file = fopen(path_name, "r"); // "r" for read only
+	printf("file was opened\n");
     }
     if(!file) {
-	send_error_packet(sockfd, 1, "File was opened");
+	send_error_packet(sockfd, 1, "File was not opened");
 	exit(-1);
     }
 
@@ -459,7 +446,7 @@ int main(int argc, char** argv) {
             // Write request, not implemented
             //printf("WRQ\n");
             printf("ERROR: Uploading not allowed. ACCESS VIOLATION. \n");
-	    	send_error_packet(sockfd, ACCESS, "Access violation. Write requests not allowed.\0");
+	    send_error_packet(sockfd, ACCESS, "Access violation. Write requests not allowed.\0");
         }
         else if (op_code == DATA) {
             // Data packet, illegal operation
@@ -472,7 +459,7 @@ int main(int argc, char** argv) {
             //printf("ACK\n");
 	    // get block number from the ack packet
 	    ack_block_number = (((unsigned char*)rec_packet)[2] << 8) + ((unsigned char*)rec_packet)[3];
-            if (htons(ack_block_number) == block_number) {
+            if (ack_block_number == block_number) {
 	   	// then data packet was delivered and next packet can be sent
 		ack_packet_true(sockfd);
              }
