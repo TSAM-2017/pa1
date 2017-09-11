@@ -212,22 +212,21 @@ void begin_send_file(char *path_name, int sockfd) {
 }
 
 /*
-*	closes file
+*	Closes file if it's open
 */
 void end_send_file() {
-    if (file) {
-	// closes file if open
+    if (file != NULL){
 	fclose(file);
+	file = NULL;
     }
-    file = NULL;
 }
 
 /*
-*	builds a data packet, reads into the data field from file upto a max BLOCK_SIZE bytes
+*	builds a data packet, reads into the data field from file up to a max BLOCK_SIZE bytes
 *	sends the packet and closes the file if last byte of file was read
 *	@param sockfd	socket descriptor
 *	DATA packet:
-*	           2 bytes     2 bytes      n bytes
+*	               2 bytes     2 bytes     n bytes
 *                  ----------------------------------
 *                 | Opcode |   Block #  |   Data     |
 *                  ----------------------------------
@@ -460,7 +459,7 @@ int main(int argc, char** argv) {
             // Write request, not implemented
             //printf("WRQ\n");
             printf("ERROR: Uploading not allowed. ACCESS VIOLATION. \n");
-	    send_error_packet(sockfd, ACCESS, "Access violation. Write requests not allowed.\0");
+	    	send_error_packet(sockfd, ACCESS, "Access violation. Write requests not allowed.\0");
         }
         else if (op_code == DATA) {
             // Data packet, illegal operation
@@ -473,7 +472,7 @@ int main(int argc, char** argv) {
             //printf("ACK\n");
 	    // get block number from the ack packet
 	    ack_block_number = (((unsigned char*)rec_packet)[2] << 8) + ((unsigned char*)rec_packet)[3];
-            if (ack_block_number == block_number) {
+            if (htons(ack_block_number) == block_number) {
 	   	// then data packet was delivered and next packet can be sent
 		ack_packet_true(sockfd);
              }
@@ -482,7 +481,7 @@ int main(int argc, char** argv) {
 		//printf("ACK_BLOCK_NUMBER: %d\n", ack_block_number);
                 //printf("resend last packet with blocknumber: %d\n", block_number);
                 sendto(sockfd, send_packet, data_bytes+4, 0, (struct sockaddr *) &client, (socklen_t) sizeof(client));
-	    }
+	    	}
         }
 	else if (op_code == ERROR) {
             // Error packet
